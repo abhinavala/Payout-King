@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rules-engine"
+version = "0.1.0"
+description = "Core rule calculation engine for Payout King"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0.0",
+    "python-dateutil>=2.8.0",
+    "pytz>=2023.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
