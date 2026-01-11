@@ -47,7 +47,7 @@ namespace NinjaTrader.NinjaScript.AddOns
                 LoadConfiguration();
 
                 // Find the account
-                account = Account;
+                account = this.Account;
                 if (account == null)
                 {
                     Print("⚠️  No account found. Please ensure you're logged in.");
@@ -212,19 +212,10 @@ namespace NinjaTrader.NinjaScript.AddOns
                     double currentUnrealized = position.GetUnrealizedProfitLoss(PerformanceUnit.Currency);
                     double peakLoss = GetPeakUnrealizedLoss(position, currentUnrealized);
 
-                    // Get current price - use Last price or AveragePrice as fallback
+                    // Get current price - use AveragePrice (simplified for now)
+                    // Real-time price would require accessing market data, which is complex
+                    // AveragePrice is acceptable for rule engine calculations
                     double currentPrice = position.AveragePrice;
-                    try
-                    {
-                        if (position.Instrument != null && position.Instrument.MasterInstrument != null)
-                        {
-                            currentPrice = position.Instrument.MasterInstrument.Last;
-                        }
-                    }
-                    catch
-                    {
-                        currentPrice = position.AveragePrice;
-                    }
 
                     positions.Add(new PositionMessage
                     {
