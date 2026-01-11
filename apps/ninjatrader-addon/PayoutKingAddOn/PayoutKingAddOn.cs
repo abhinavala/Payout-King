@@ -46,8 +46,17 @@ namespace NinjaTrader.NinjaScript.AddOns
                 // Load configuration from config file
                 LoadConfiguration();
 
-                // Find the account
-                account = this.Account;
+                // Find the account - in AddOns, get the first connected account
+                account = null;
+                foreach (Account acc in Cbi.Account.All)
+                {
+                    if (acc != null)
+                    {
+                        account = acc;
+                        break;
+                    }
+                }
+                
                 if (account == null)
                 {
                     Print("⚠️  No account found. Please ensure you're logged in.");
