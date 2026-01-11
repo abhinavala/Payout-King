@@ -8,27 +8,13 @@
 #region Using declarations
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Xml.Serialization;
 using Newtonsoft.Json;
 using NinjaTrader.Cbi;
-using NinjaTrader.Gui;
-using NinjaTrader.Gui.Chart;
-using NinjaTrader.Gui.SuperDom;
-using NinjaTrader.Gui.Tools;
-using NinjaTrader.Data;
 using NinjaTrader.NinjaScript;
-using NinjaTrader.Core.FloatingPoint;
-using NinjaTrader.NinjaScript.Indicators;
-using NinjaTrader.NinjaScript.DrawingTools;
 #endregion
 
 namespace NinjaTrader.NinjaScript.AddOns
@@ -153,30 +139,30 @@ namespace NinjaTrader.NinjaScript.AddOns
             }
         }
 
-        private void OnAccountUpdate(object sender, AccountEventArgs e)
+        private void OnAccountUpdate()
         {
             // Account data updated, send to backend
             Task.Run(async () => await SendAccountData());
         }
 
-        private void OnPositionUpdate(object sender, PositionEventArgs e)
+        private void OnPositionUpdate()
         {
             // Position updated, send to backend
             Task.Run(async () => await SendAccountData());
         }
 
-        private void OnOrderUpdate(object sender, OrderEventArgs e)
+        private void OnOrderUpdate()
         {
             // Order updated, send to backend
             Task.Run(async () => await SendAccountData());
         }
 
-        private void OnExecutionUpdate(object sender, ExecutionEventArgs e)
+        private void OnExecutionUpdate(Execution execution)
         {
             // Fill occurred - track for daily PnL calculation
-            if (e.Execution != null && e.Execution.ExecutionType == ExecutionType.Fill)
+            if (execution != null && execution.ExecutionType == ExecutionType.Fill)
             {
-                TrackFill(e.Execution);
+                TrackFill(execution);
             }
         }
 
