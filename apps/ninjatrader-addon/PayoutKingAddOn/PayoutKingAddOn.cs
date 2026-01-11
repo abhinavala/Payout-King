@@ -36,7 +36,6 @@ namespace NinjaTrader.NinjaScript.AddOns
             {
                 Name = "Payout King Add-On";
                 Description = "Sends account data to Payout King backend for rule tracking";
-                IsOverlay = false;
             }
             else if (State == State.Configure)
             {
@@ -57,12 +56,6 @@ namespace NinjaTrader.NinjaScript.AddOns
 
                 accountId = account.Name;
                 Print($"✅ Connected to account: {accountId}");
-
-                // Subscribe to account events
-                account.AccountUpdate += OnAccountUpdate;
-                account.PositionUpdate += OnPositionUpdate;
-                account.OrderUpdate += OnOrderUpdate;
-                account.ExecutionUpdate += OnExecutionUpdate; // Track fills for daily PnL
             }
             else if (State == State.Active)
             {
@@ -86,14 +79,6 @@ namespace NinjaTrader.NinjaScript.AddOns
                 if (httpClient != null)
                 {
                     httpClient.Dispose();
-                }
-
-                if (account != null)
-                {
-                    account.AccountUpdate -= OnAccountUpdate;
-                    account.PositionUpdate -= OnPositionUpdate;
-                    account.OrderUpdate -= OnOrderUpdate;
-                    account.ExecutionUpdate -= OnExecutionUpdate;
                 }
             }
         }
@@ -137,51 +122,6 @@ namespace NinjaTrader.NinjaScript.AddOns
                 Print($"⚠️  Error loading config: {ex.Message}");
                 Print($"   Using defaults: {backendUrl}");
             }
-        }
-
-        private void OnAccountUpdate()
-        {
-            // Account data updated, send to backend
-            Task.Run(async () => await SendAccountData());
-        }
-
-        private void OnPositionUpdate()
-        {
-            // Position updated, send to backend
-            Task.Run(async () => await SendAccountData());
-        }
-
-        private void OnOrderUpdate()
-        {
-            // Order updated, send to backend
-            Task.Run(async () => await SendAccountData());
-        }
-
-        private void OnExecutionUpdate(Execution execution)
-        {
-            // Fill occurred - track for daily PnL calculation
-            if (execution != null && execution.ExecutionType == ExecutionType.Fill)
-            {
-                TrackFill(execution);
-            }
-        }
-
-        private void TrackFill(Execution execution)
-        {
-            // Get today's date string (YYYY-MM-DD)
-            string today = DateTime.UtcNow.ToString("yyyy-MM-dd");
-            
-            // Get realized PnL from this fill
-            // Note: NinjaTrader provides realized PnL per execution
-            double fillPnL = execution.RealizedPnL;
-            
-            // Accumulate daily PnL
-            if (!dailyPnLByDate.ContainsKey(today))
-            {
-                dailyPnLByDate[today] = 0;
-            }
-            
-            dailyPnLByDate[today] += fillPnL;
         }
 
         private async Task SendAccountData()
@@ -272,14 +212,28 @@ namespace NinjaTrader.NinjaScript.AddOns
                     double currentUnrealized = position.GetUnrealizedProfitLoss(PerformanceUnit.Currency);
                     double peakLoss = GetPeakUnrealizedLoss(position, currentUnrealized);
 
+                    // Get current price - use Last price or AveragePrice as fallback
+                    double currentPrice = position.AveragePrice;
+                    try
+                    {
+                        if (position.Instrument != null && position.Instrument.MasterInstrument != null)
+                        {
+                            currentPrice = position.Instrument.MasterInstrument.Last;
+                        }
+                    }
+                    catch
+                    {
+                        currentPrice = position.AveragePrice;
+                    }
+
                     positions.Add(new PositionMessage
                     {
                         Symbol = position.Instrument.FullName,
                         Quantity = position.Quantity, // Positive = long, negative = short
                         AvgPrice = (decimal)position.AveragePrice,
-                        CurrentPrice = (decimal)position.Instrument.MasterInstrument.Close[0],
+                        CurrentPrice = (decimal)currentPrice,
                         UnrealizedPnl = (decimal)currentUnrealized,
-                        OpenedAt = (long)(position.EntryTime - new DateTime(1970, 1, 1)).TotalMilliseconds,
+                        OpenedAt = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalMilliseconds, // Simplified - entry time not easily available
                         PeakUnrealizedLoss = (decimal)peakLoss
                     });
                 }
@@ -290,7 +244,8 @@ namespace NinjaTrader.NinjaScript.AddOns
 
         private double GetPeakUnrealizedLoss(Position position, double currentUnrealized)
         {
-            string key = position.Instrument.FullName + "_" + position.EntryTime.Ticks;
+            // Use instrument name + quantity as key (entry time not easily available)
+            string key = position.Instrument.FullName + "_" + position.Quantity.ToString();
             
             if (!peakLosses.ContainsKey(key))
             {
@@ -317,8 +272,8 @@ namespace NinjaTrader.NinjaScript.AddOns
 
         private Dictionary<string, decimal> GetDailyPnlHistory()
         {
-            // Return daily PnL history from tracked fills
-            // Backend is source of truth, but we provide what we've tracked
+            // Return daily PnL history - simplified for now
+            // Backend is source of truth and tracks this more accurately
             var history = new Dictionary<string, decimal>();
             
             foreach (var kvp in dailyPnLByDate)
